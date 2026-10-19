@@ -357,8 +357,8 @@ export default function OutreachQueue() {
                     </span>
                     <span className="text-sm text-gray-500">({items.length})</span>
                   </div>
-                </section>
-              </div>
+                </div>
+              </section>
             );
           })}
         </div>
