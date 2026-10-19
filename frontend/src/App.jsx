@@ -1,8 +1,6 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useEffect } from 'react';
 import Layout from './components/Layout';
-import Campaigns from './pages/Campaigns';
-import AddCampaign from './pages/AddCampaign';
 import CampaignDetail from './pages/CampaignDetail';
 import Inboxes from './pages/Inboxes';
 import Schedule from './pages/Schedule';
