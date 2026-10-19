@@ -247,6 +247,8 @@ class Campaign(Base):
         back_populates="campaign",
         cascade="all, delete-orphan",
     )
+    # Project owner (user who owns this campaign)
+    owner = relationship("User", back_populates="owned_campaigns")
 
 
 class CampaignInbox(Base):
