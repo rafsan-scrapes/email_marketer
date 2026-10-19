@@ -670,6 +670,11 @@ class ContactGroupLeadResponse(BaseModel):
         from_attributes = True
 
 
+class ContactGroupLeadAdd(BaseModel):
+    """Schema for adding a lead to a contact group."""
+    lead_id: int
+
+
 # ---------------------------------------------------------------------------
 # Template schemas (Phase 4)
 # ---------------------------------------------------------------------------
