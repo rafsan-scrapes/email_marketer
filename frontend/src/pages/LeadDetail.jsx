@@ -100,7 +100,7 @@ export default function LeadDetail() {
               >
                 <div>
                   <Link
-                    to={`/campaigns/${c.campaign_id}#leads`}
+                    to={`/projects/${c.campaign_id}#leads`}
                     className="text-teal-600 hover:underline font-medium"
                   >
                     {c.campaign_name}
