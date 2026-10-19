@@ -1632,6 +1632,13 @@ async def send_test_email(
     db: AsyncSession = Depends(get_db),
 ):
     """Send a rendered test email to the specified address using the campaign's first inbox."""
+    # MANUAL MODE: Test sending is disabled. Users compose drafts and send externally.
+    from app.settings_manager import settings
+    if settings.manual_mode:
+        raise HTTPException(
+            403,
+            "Test sending is disabled in manual mode. Compose your draft and send it externally."
+        )
     import asyncio
 
     seq_result = await db.execute(

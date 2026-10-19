@@ -87,6 +87,17 @@ class Settings:
             self.time_offset_days: int = int(os.getenv("TIME_OFFSET_DAYS", "0"))
         except ValueError:
             self.time_offset_days = 0
+
+        # Manual-only mode: when enabled, the application will not deliver any
+        # email or LinkedIn messages through any pathway (background jobs, API
+        # endpoints, scheduler, direct SMTP, etc.). Queue slots are not created,
+        # and test-send endpoints are disabled. Users compose drafts and send
+        # externally. Controlled via QUICKLY_MANUAL_MODE environment variable.
+        self.manual_mode: bool = os.getenv("QUICKLY_MANUAL_MODE", "false").lower() in (
+            "true",
+            "1",
+            "yes",
+        )
     
     @property
     def google_redirect_uri(self) -> str:
@@ -130,6 +141,8 @@ class Settings:
                 self.time_offset_days = int(data["time_offset_days"])
             except Exception:
                 self.time_offset_days = 0
+        if "manual_mode" in data:
+            self.manual_mode = str(data["manual_mode"]).lower() in ("true", "1", "yes")
 
 
 # Global settings instance
@@ -215,6 +228,7 @@ async def initialize_settings(db: AsyncSession):
             "test_mode": str(settings.test_mode),
             "telemetry_enabled": str(settings.telemetry_enabled),
             "time_offset_days": str(settings.time_offset_days),
+            "manual_mode": str(settings.manual_mode),
         }
         await save_all_settings_to_db(db, default_data)
         await db.commit()

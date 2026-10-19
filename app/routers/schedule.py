@@ -813,6 +813,14 @@ async def recalculate_all_campaigns(db: AsyncSession) -> dict:
       leads are interleaved in batch-size chunks to keep the slot-count cache alive
       across campaign boundaries.
     """
+    # MANUAL MODE: Do not create queue slots. Users compose drafts and send externally.
+    from app.settings_manager import settings
+    if settings.manual_mode:
+        log.info("recalculate_all_campaigns: manual_mode enabled — clearing queue only, no slot creation")
+        await clear_queue(db)
+        await _record_global_recalc_finished(db)
+        return {"ok": True, "campaigns_processed": 0, "total_slots": 0, "initial_slots": 0, "strategy": "manual"}
+
     strategy = await get_scheduling_strategy(db)
     log.info("recalculate_all_campaigns: starting global recalculation (strategy=%s)", strategy)
 

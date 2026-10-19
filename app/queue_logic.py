@@ -942,6 +942,15 @@ async def reserve_slots_for_new_leads_bulk(
     if not campaign_lead_ids:
         return
 
+    # MANUAL MODE: Do not create queue slots. Users compose drafts and send externally.
+    from app.settings_manager import settings
+    if settings.manual_mode:
+        log.info(
+            "reserve_slots_for_new_leads_bulk: manual_mode enabled — skipping slot creation for campaign %s",
+            campaign_id,
+        )
+        return
+
     log.info(
         "reserve_slots_for_new_leads_bulk: campaign=%s leads=%d",
         campaign_id, len(campaign_lead_ids),

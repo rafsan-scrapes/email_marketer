@@ -382,6 +382,13 @@ async def send_test_email(
     Calls ``app.sender._send_via_smtp`` (via ``send_email``) so "auth OK but
     relay rejects the sender" is caught here, unlike the connection test.
     """
+    # MANUAL MODE: Test sending is disabled. Users compose drafts and send externally.
+    from app.settings_manager import settings
+    if settings.manual_mode:
+        raise HTTPException(
+            403,
+            "Test sending is disabled in manual mode. Compose your draft and send it externally."
+        )
     import time as _time
 
     to_email = (data.to_email or "").strip()

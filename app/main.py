@@ -49,7 +49,7 @@ from app.routers import notifications as notifications_router
 from app.routers import notices as notices_router
 from app.routers import system_health as system_health_router
 from app.routers import analytics as analytics_router
-from app.jobs import run_send_job, run_slot_scan_job, last_send_job_run, last_send_job_sent_count, run_telemetry_heartbeat_job
+from app.jobs import run_send_job, last_send_job_run, last_send_job_sent_count, run_telemetry_heartbeat_job
 from app.unibox import queue_sync_for_all_inboxes, run_unibox_sync_job
 from app import time as time_provider
 import app.scheduler as scheduler_mod
@@ -117,14 +117,15 @@ async def lifespan(app: FastAPI):
         # Already-overdue slots are dispatched immediately (delay=0).
         # This keeps APScheduler cost flat (1 job regardless of queue size) while
         # preserving second-level precision for each individual slot.
-        schedule.add_job(
-            run_slot_scan_job,
-            "interval",
-            minutes=1,
-            id="slot_scan",
-            replace_existing=True,
-            max_instances=1,
-        )
+        # DISABLED IN MANUAL MODE: email sending is handled externally by users.
+        # schedule.add_job(
+        #     run_slot_scan_job,
+        #     "interval",
+        #     minutes=1,
+        #     id="slot_scan",
+        #     replace_existing=True,
+        #     max_instances=1,
+        # )
         schedule.start()
 
         from app.backup_schedule import register_scheduled_backup_from_db
