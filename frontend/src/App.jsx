@@ -15,10 +15,6 @@ import Leads from './pages/Leads';
 import LeadDetail from './pages/LeadDetail';
 import Notifications from './pages/Notifications';
 import Login from './pages/Login';
-import Templates from './pages/Templates';
-import OutreachQueue from './pages/OutreachQueue';
-import Projects from './pages/Projects';
-import AddProject from './pages/AddProject';
 import { api } from './api';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import SplashScreen from './components/SplashScreen';
@@ -60,19 +56,21 @@ function AppRoutes() {
         <ProtectedRoute>
           <Layout>
             <Routes>
-              <Route path="/" element={<Navigate to="/projects" replace />} />
-              <Route path="/projects" element={<Projects />} />
-              <Route path="/projects/new" element={<AddProject />} />
-              <Route path="/projects/:id" element={<CampaignDetail />} />
-              <Route path="/contacts" element={<Leads />} />
-              <Route path="/contacts/:id" element={<LeadDetail />} />
-              <Route path="/templates" element={<Templates />} />
-              <Route path="/outreach" element={<OutreachQueue />} />
+              <Route path="/" element={<Analytics />} />
+              <Route path="/campaigns" element={<Campaigns />} />
+              <Route path="/campaigns/add" element={<AddCampaign />} />
+              <Route path="/campaigns/:id" element={<CampaignDetail />} />
+              <Route path="/leads" element={<Leads />} />
+              <Route path="/leads/:id" element={<LeadDetail />} />
+              <Route path="/inboxes" element={<Inboxes />} />
+              <Route path="/unibox" element={<Unibox />} />
+              <Route path="/schedule" element={<Schedule />} />
+              <Route path="/analytics" element={<Analytics />} />
               <Route path="/settings" element={<Settings />} />
+              <Route path="/deliverability-tips" element={<DeliverabilityTips />} />
               <Route path="/system-health" element={<SystemHealth />} />
               <Route path="/notifications" element={<Notifications />} />
-              <Route path="/deliverability-tips" element={<DeliverabilityTips />} />
-              <Route path="*" element={<Navigate to="/projects" replace />} />
+              <Route path="*" element={<Navigate to="/" />} />
             </Routes>
           </Layout>
         </ProtectedRoute>

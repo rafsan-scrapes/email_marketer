@@ -434,7 +434,7 @@ export default function Schedule() {
                 <div><span className="dp-label">Scheduled for</span><br/><span className="dp-val">{fmtDateTime(item.scheduled_at, tz)}</span></div>
               )}
               <div><span className="dp-label">Lead</span><br/><span className="dp-val mono">{item.lead_email}</span>{item.lead_name ? ` (${item.lead_name})` : ''}<br/><span className={`badge ${item.lead_status}`}>{item.lead_status}</span></div>
-              <div><span className="dp-label">Campaign</span><br/><span className="dp-val"><a href={`/projects/${item.campaign_id}`}>{item.campaign_name}</a></span></div>
+              <div><span className="dp-label">Campaign</span><br/><span className="dp-val"><a href={`/campaigns/${item.campaign_id}`}>{item.campaign_name}</a></span></div>
               <div><span className="dp-label">Sequence step</span><br/><span className="dp-val">{item.sequence_index+1}</span></div>
               <div><span className="dp-label">Wait after previous</span><br/><span className="dp-val">{item.sequence_wait_days??0} day(s)</span></div>
               <div className="dp-full"><span className="dp-label">Subject</span><br/><span className="dp-val">{subject}</span></div>

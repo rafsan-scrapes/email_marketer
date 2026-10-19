@@ -13,8 +13,6 @@ import {
   RiHeartPulseLine,
   RiContactsLine,
   RiNotification3Line,
-  RiFileList3Line,
-  RiArticleLine,
 } from 'react-icons/ri';
 import { useUniboxNotifications } from '../../context/UniboxNotificationsContext';
 import { useNotifications } from '../../context/NotificationsContext';
@@ -23,12 +21,14 @@ import { useSystemHealth } from '../../context/SystemHealthContext';
 
 // links including icons
 const links = [
-  { to: '/', label: 'Dashboard', icon: <RiLineChartLine size={20} /> },
-  { to: '/projects', label: 'Projects', icon: <RiArticleLine size={20} /> },
-  { to: '/contacts', label: 'Contacts', icon: <RiContactsLine size={20} /> },
-  { to: '/templates', label: 'Templates', icon: <RiFileList3Line size={20} /> },
-  { to: '/outreach', label: 'Outreach Queue', icon: <RiSendPlaneLine size={20} /> },
-  { to: '/settings', label: 'Settings', icon: <RiSettingsLine size={20} /> },
+  { to: '/analytics', label: 'Analytics', icon: <RiLineChartLine size={20} /> },
+  { to: '/campaigns', label: 'Campaigns', icon: <RiSendPlaneLine size={20} /> },
+  { to: '/leads', label: 'Leads', icon: <RiContactsLine size={20} /> },
+  { to: '/inboxes', label: 'Inboxes', icon: <RiMailLine size={20} /> },
+  { to: '/unibox', label: 'Unibox', icon: <RiInboxLine size={20} /> },
+  { to: '/schedule', label: 'Schedule', icon: <RiCalendarScheduleLine size={20} /> },
+  { to: '/notifications', label: 'Notifications', icon: <RiNotification3Line size={20} /> },
+  { to: '/settings#general', label: 'Settings', icon: <RiSettingsLine size={20} /> },
 ];
 
 const APP_VERSION = '0.1.0';

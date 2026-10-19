@@ -554,7 +554,7 @@ export default function Leads() {
                       {(l.campaigns || []).map((c) => (
                         <Link
                           key={c.campaign_id}
-                          to={`/projects/${c.campaign_id}#leads`}
+                          to={`/campaigns/${c.campaign_id}#leads`}
                           className="bg-gray-200 dark:bg-gray-600 rounded-full px-2 py-0.5 text-xs hover:bg-gray-300 dark:hover:bg-gray-500"
                         >
                           {c.campaign_name}

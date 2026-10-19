@@ -9,8 +9,6 @@ Update this file after every meaningful implementation change. Record only work 
 - **Phase 2 complete: native email-and-password authentication.** Users can register and sign in with email/password without OAuth.
 - **Phase 3 complete: project and contact-management workflow.** Projects, contact groups, CSV import with column mapping, and lead management implemented.
 - **Phase 4 complete: templates, mixed-channel sequences, draft generation, and local draft scheduling.**
-- **Phase 5 complete: manual draft queue UI (Outreach Queue).**
-- **Phase 6 complete: UI updates — streamlined navigation, removed automated outreach pages.**
 
 ## Current Goal
 
@@ -168,73 +166,15 @@ Update this file after every meaningful implementation change. Record only work 
     - `app/schemas.py` — added Template, extended Sequence, Draft schemas
     - `app/routers/templates.py` — new router with all template/sequence/draft endpoints
     - `app/main.py` — registered templates router
-- **Phase 5 implementation complete: Manual Outreach Queue (frontend):**
-  - **New OutreachQueue page** (`frontend/src/pages/OutreachQueue.jsx`):
-    - Filterable draft queue with search by project, group, contact, channel, sequence, status, date range
-    - Grouped view by status: Due Now, Upcoming, Sent, Skipped, Blocked with color-coded badges
-    - Draft detail modal showing full personalized content (subject + body)
-    - Contact info with email/LinkedIn URL, sequence step, scheduled time
-    - **Manual action controls per draft**:
-      - Copy Subject (email only)
-      - Copy Body
-      - Copy Subject + Body
-      - Copy DM (LinkedIn)
-      - Open LinkedIn Profile (when URL exists)
-      - Mark as Sent (with confirmation, updates local state, calculates next step due time)
-      - Skip Message (with confirmation)
-      - Stop Sequence (with confirmation, skips remaining steps for contact)
-    - Clipboard integration with success/failure notifications
-    - Pagination and responsive layout
-  - **Navigation & Routing**:
-    - `/outreach` route for the Outreach Queue
-    - Project detail pages at `/projects/:id` with tabs for sequences, leads, queue, settings
-  - **Files modified in Phase 5:**
-    - `frontend/src/pages/OutreachQueue.jsx` — new page component
-    - `frontend/src/App.jsx` — added `/outreach` route
-- **Phase 6 implementation complete: UI streamlining & navigation overhaul:**
-  - **New navigation structure** (`frontend/src/components/ui/Sidebar.jsx`):
-    - Dashboard (`/`)
-    - Projects (`/projects`)
-    - Contacts (`/contacts`)
-    - Templates (`/templates`)
-    - Outreach Queue (`/outreach`)
-    - Settings (`/settings`)
-    - Removed: Inboxes, Unibox, Schedule, Campaigns, Analytics, Deliverability Tips, System Health, Notifications (legacy automated outreach pages)
-  - **New pages created**:
-    - `Projects.jsx` — project list with create/delete, drag-to-reorder (priority mode)
-    - `AddProject.jsx` — new project creation form
-    - `Templates.jsx` — template CRUD with live preview, channel selection, placeholder validation
-    - `OutreachQueue.jsx` — manual outreach queue (see Phase 5)
-  - **Updated pages**:
-    - `CampaignDetail.jsx` — renamed to project detail, updated all API calls to `/projects/`
-    - `Leads.jsx` / `LeadDetail.jsx` — updated routes to `/contacts/`
-    - `Analytics.jsx`, `LeadDetail.jsx`, `Notifications.jsx`, `Schedule.jsx`, `Settings.jsx` — updated route references
-    - `AddProject.jsx` — new project creation page
-  - **Removed legacy pages**: `Campaigns.jsx`, `AddCampaign.jsx`
-  - **Updated routing** (`App.jsx`): new routes for `/projects`, `/projects/new`, `/projects/:id`, `/contacts`, `/contacts/:id`, `/templates`, `/outreach`
-  - **Updated sidebar** (`Sidebar.jsx`): new icons, new links, removed automated outreach links
-  - **Files modified in Phase 6:**
-    - `frontend/src/App.jsx` — new routes
-    - `frontend/src/components/ui/Sidebar.jsx` — new navigation
-    - `frontend/src/pages/Projects.jsx` — new page
-    - `frontend/src/pages/AddProject.jsx` — new page
-    - `frontend/src/pages/Templates.jsx` — new page
-    - `frontend/src/pages/OutreachQueue.jsx` — new page (Phase 5)
-    - `frontend/src/pages/CampaignDetail.jsx` — updated to project detail
-    - `frontend/src/pages/Leads.jsx` / `LeadDetail.jsx` — updated routes
-    - `frontend/src/pages/Analytics.jsx`, `Notifications.jsx`, `Schedule.jsx`, `Settings.jsx` — route updates
-    - `frontend/src/components/ui/Sidebar.jsx` — new navigation structure
-    - Deleted: `frontend/src/pages/Campaigns.jsx`, `AddCampaign.jsx`
 
 ## In Progress
 
-- No implementation change is currently in progress. Phase 6 is complete.
+- No implementation change is currently in progress. Phase 4 is complete.
 
 ## Next Up
 
-1. Write tests for copy actions, manual sent-status transition, scheduling next step, skipping steps, stopping sequences.
-2. Update README with new workflow, account setup, CSV format, and manual-only guarantee.
-3. Verify migrations apply cleanly to existing Railway PostgreSQL database.
+1. Manual draft queue UI (Phase 5): implement frontend for draft queue with due-time eligibility, manual sent-status action, next-step due calculation.
+2. UI updates (Phase 6): hide/disable legacy inbox connection, reply sync, tracking, analytics pages if not needed for core workflow.
 
 ## Open Questions
 
@@ -287,21 +227,6 @@ Update this file after every meaningful implementation change. Record only work 
   - `app/schemas.py` — added Template, extended Sequence, Draft schemas
   - `app/routers/templates.py` — new router with all template/sequence/draft endpoints
   - `app/main.py` — registered templates router
-- **Files modified in Phase 5:**
-  - `frontend/src/pages/OutreachQueue.jsx` — new page
-  - `frontend/src/App.jsx` — added `/outreach` route
-- **Files modified in Phase 6:**
-  - `frontend/src/App.jsx` — new routes for `/projects`, `/projects/new`, `/projects/:id`, `/contacts`, `/contacts/:id`, `/templates`, `/outreach`
-  - `frontend/src/components/ui/Sidebar.jsx` — new navigation structure
-  - `frontend/src/pages/Projects.jsx` — new page
-  - `frontend/src/pages/AddProject.jsx` — new page
-  - `frontend/src/pages/Templates.jsx` — new page
-  - `frontend/src/pages/OutreachQueue.jsx` — manual outreach queue (Phase 5)
-  - `frontend/src/pages/CampaignDetail.jsx` — updated to project detail, API calls to `/projects/`
-  - `frontend/src/pages/Leads.jsx` / `LeadDetail.jsx` — updated routes to `/projects/`
-  - `frontend/src/pages/Analytics.jsx`, `Notifications.jsx`, `Schedule.jsx`, `Settings.jsx` — route updates
-  - `frontend/src/components/ui/Sidebar.jsx` — new navigation structure
-  - Deleted: `frontend/src/pages/Campaigns.jsx`, `AddCampaign.jsx`
 - No database migrations required in Phase 1-2 (additive settings only, existing User model compatible).
 - Phase 3-4 migrations are additive and will run automatically on startup via `app/database.py:_run_migrations()`.
 - To enable manual mode: set `QUICKLY_MANUAL_MODE=true` in environment (`.env` or deployment config).

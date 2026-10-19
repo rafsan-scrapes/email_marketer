@@ -42,18 +42,18 @@ const TAB_LABELS = {
 // ─── Main page ────────────────────────────────────────────────────────────────
 export default function CampaignDetail() {
   const { id } = useParams();
-  const [campaign, setCampaign] = useState(() => apiCache.get(`/projects/${id}`) || null);
+  const [campaign, setCampaign] = useState(() => apiCache.get(`/campaigns/${id}`) || null);
   const [inboxes, setInboxes] = useState(() => apiCache.get('/inboxes') || []);
-  const [sequences, setSequences] = useState(() => apiCache.get(`/projects/${id}/sequences`) || []);
-  const [leads, setLeads] = useState(() => apiCache.get(`/projects/${id}/leads`) || []);
-  const [queueData, setQueueData] = useState(() => apiCache.get(`/projects/${id}/queue`) || []);
-  const [sentData, setSentData] = useState(() => apiCache.get(`/projects/${id}/sent`) || []);
+  const [sequences, setSequences] = useState(() => apiCache.get(`/campaigns/${id}/sequences`) || []);
+  const [leads, setLeads] = useState(() => apiCache.get(`/campaigns/${id}/leads`) || []);
+  const [queueData, setQueueData] = useState(() => apiCache.get(`/campaigns/${id}/queue`) || []);
+  const [sentData, setSentData] = useState(() => apiCache.get(`/campaigns/${id}/sent`) || []);
   const [queueFilter, setQueueFilter] = useState(null);
   const queueRef = useRef(null);
   const [pastExpanded, setPastExpanded] = useState(false);
   const [recalcInProgress, setRecalcInProgress] = useState(false);
   const [error, setError] = useState(null);
-  const [loading, setLoading] = useState(() => !apiCache.get(`/projects/${id}`));
+  const [loading, setLoading] = useState(() => !apiCache.get(`/campaigns/${id}`));
   const [activeTab, setActiveTab] = useState(() => {
     const hash = window.location.hash.replace('#', '');
     return TABS.includes(hash) ? hash : 'analytics';
@@ -81,12 +81,12 @@ export default function CampaignDetail() {
     loadingCtrl.start();
     try {
       const [camp, ibxs, seqs, lds, q, s] = await Promise.all([
-        api.get(`/projects/${id}`),
+        api.get(`/campaigns/${id}`),
         api.get('/inboxes'),
-        api.get(`/projects/${id}/sequences`),
-        api.get(`/projects/${id}/leads`),
-        api.get(`/projects/${id}/queue`),
-        api.get(`/projects/${id}/sent`),
+        api.get(`/campaigns/${id}/sequences`),
+        api.get(`/campaigns/${id}/leads`),
+        api.get(`/campaigns/${id}/queue`),
+        api.get(`/campaigns/${id}/sent`),
       ]);
       setCampaign(camp);
       setInboxes(ibxs);
@@ -96,7 +96,7 @@ export default function CampaignDetail() {
       setSentData(s);
     } catch (e) {
       setError(e.message);
-      notify({ type: 'error', message: 'Failed to load project data' });
+      notify({ type: 'error', message: 'Failed to load campaign data' });
     } finally {
       loadingCtrl.stop();
       setLoading(false);
@@ -233,12 +233,12 @@ export default function CampaignDetail() {
   async function recalculateQueue() {
     setRecalcInProgress(true);
     try {
-      const res = await api.post(`/projects/${id}/recalculate-queue`);
+      const res = await api.post(`/campaigns/${id}/recalculate-queue`);
       if (res?.slots != null) {
         notify({ type: 'success', message: `Queue recalculated (${res.slots} slots)` });
         const [q, s] = await Promise.all([
-          api.get(`/projects/${id}/queue`),
-          api.get(`/projects/${id}/sent`),
+          api.get(`/campaigns/${id}/queue`),
+          api.get(`/campaigns/${id}/sent`),
         ]);
         setQueueData(q);
         setSentData(s);
@@ -480,7 +480,7 @@ function LeadsTab({ leads, campaignId, refresh, onViewQueue }) {
   // Load verification summary
   const loadVerificationSummary = useCallback(async () => {
     try {
-      const res = await api.get(`/projects/${campaignId}/leads/verification-status`);
+      const res = await api.get(`/campaigns/${campaignId}/leads/verification-status`);
       setVerificationSummary(res);
     } catch {}
   }, [campaignId]);
@@ -502,7 +502,7 @@ function LeadsTab({ leads, campaignId, refresh, onViewQueue }) {
   const verifyAllLeads = async (forceReverify = false) => {
     setVerifying(true);
     try {
-      const url = `/projects/${campaignId}/leads/verify` + (forceReverify ? '?reverify=true' : '');
+      const url = `/campaigns/${campaignId}/leads/verify` + (forceReverify ? '?reverify=true' : '');
       const res = await api.post(url);
 
       // Nothing queued – ask the user if they want to re-verify existing ones
@@ -528,7 +528,7 @@ function LeadsTab({ leads, campaignId, refresh, onViewQueue }) {
 
       verifyPollRef.current = setInterval(async () => {
         try {
-          const newSummary = await api.get(`/projects/${campaignId}/leads/verification-status`);
+          const newSummary = await api.get(`/campaigns/${campaignId}/leads/verification-status`);
           setVerificationSummary(newSummary);
           const ns = newSummary.statuses || {};
 
@@ -591,7 +591,7 @@ function LeadsTab({ leads, campaignId, refresh, onViewQueue }) {
     const ok = await confirm(`Remove ${email} from this campaign?`);
     if (!ok) return;
     try {
-      await api.del(`/projects/${campaignId}/leads/${lid}`);
+      await api.del(`/campaigns/${campaignId}/leads/${lid}`);
       notify({ type: 'success', message: 'Lead removed' });
       refresh();
     } catch (e) {
@@ -609,7 +609,7 @@ function LeadsTab({ leads, campaignId, refresh, onViewQueue }) {
       catch { setMsg({ type: 'error', text: 'Custom data must be valid JSON' }); return; }
     }
     try {
-      await api.post(`/projects/${campaignId}/leads`, [{
+      await api.post(`/campaigns/${campaignId}/leads`, [{
         email: single.email.trim(),
         name: single.name.trim() || undefined,
         custom_data,
@@ -667,7 +667,7 @@ function LeadsTab({ leads, campaignId, refresh, onViewQueue }) {
     if (!payload.length) { setMsg({ type: 'error', text: 'No valid emails found' }); return; }
 
     try {
-      const preview = await api.post(`/projects/${campaignId}/leads?confirm_only=true&skip_duplicates=${skipDuplicates}`, payload);
+      const preview = await api.post(`/campaigns/${campaignId}/leads?confirm_only=true&skip_duplicates=${skipDuplicates}`, payload);
       setConfirmPayload(payload);
       setConfirmPreview(preview);
       setImportFile(null);
@@ -684,7 +684,7 @@ function LeadsTab({ leads, campaignId, refresh, onViewQueue }) {
     setImporting(true);
     setLastDuplicates([]);
     try {
-      const preview = await api.upload(`/projects/${campaignId}/leads/import?confirm_only=true&skip_duplicates=${skipDuplicates}`, file);
+      const preview = await api.upload(`/campaigns/${campaignId}/leads/import?confirm_only=true&skip_duplicates=${skipDuplicates}`, file);
       setImportFile(file);
       setConfirmPayload(null);
       setConfirmPreview(preview);
@@ -701,12 +701,12 @@ function LeadsTab({ leads, campaignId, refresh, onViewQueue }) {
     try {
       let res;
       if (confirmPayload) {
-        res = await api.post(`/projects/${campaignId}/leads?skip_duplicates=${skipDuplicates}&verify_emails=${verifyEmails}`, confirmPayload);
+        res = await api.post(`/campaigns/${campaignId}/leads?skip_duplicates=${skipDuplicates}&verify_emails=${verifyEmails}`, confirmPayload);
         setBulk('');
         const dupMsg = res.duplicate_leads?.length ? ` (${res.duplicate_leads.length} duplicate(s) skipped)` : '';
         notify({ type: 'success', message: `${res.added || confirmPayload.length} lead(s) added${dupMsg}` });
       } else if (importFile) {
-        res = await api.upload(`/projects/${campaignId}/leads/import?skip_duplicates=${skipDuplicates}&verify_emails=${verifyEmails}`, importFile);
+        res = await api.upload(`/campaigns/${campaignId}/leads/import?skip_duplicates=${skipDuplicates}&verify_emails=${verifyEmails}`, importFile);
         const dupMsg = res.duplicate_leads?.length ? `, ${res.duplicate_leads.length} duplicate(s) skipped` : '';
         notify({ type: 'success', message: `Imported: ${res.added} added, ${res.already_enrolled} already enrolled, ${res.errors} errors${dupMsg}` });
       }
@@ -736,7 +736,7 @@ function LeadsTab({ leads, campaignId, refresh, onViewQueue }) {
         params.set('verification_status', filters.verification);
       }
       const qs = params.toString() ? `?${params.toString()}` : '';
-      const res = await api.download(`/projects/${campaignId}/leads/export${qs}`);
+      const res = await api.download(`/campaigns/${campaignId}/leads/export${qs}`);
       if (!res.ok) throw new Error('Export failed');
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
@@ -1091,7 +1091,7 @@ function LeadsTab({ leads, campaignId, refresh, onViewQueue }) {
                         }`}
                         onClick={async () => {
                           try {
-                            await api.patch(`/projects/${campaignId}/leads/${l.lead_id}`, {
+                            await api.patch(`/campaigns/${campaignId}/leads/${l.lead_id}`, {
                               sending_paused: !l.sending_paused,
                             });
                             notify({ type: 'success', message: l.sending_paused ? 'Sending resumed' : 'Sending paused' });
@@ -1109,7 +1109,7 @@ function LeadsTab({ leads, campaignId, refresh, onViewQueue }) {
                         onChange={async (e) => {
                           const newStatus = e.target.value;
                           try {
-                            await api.patch(`/projects/${campaignId}/leads/${l.lead_id}`, {
+                            await api.patch(`/campaigns/${campaignId}/leads/${l.lead_id}`, {
                               interest: newStatus,
                             });
                             notify({ type: 'success', message: newStatus ? `Marked as ${newStatus.replace(/_/g, ' ')}` : 'Cleared' });
@@ -1296,7 +1296,7 @@ function CampaignAnalyticsTab({ campaignId, campaign, sentData = [], sequences =
   const loadStepStats = useCallback(async () => {
     setStepStatsLoading(true);
     try {
-      const data = await api.get(`/projects/${campaignId}/analytics/steps`);
+      const data = await api.get(`/campaigns/${campaignId}/analytics/steps`);
       setStepStats(data);
     } catch (e) {
       console.error('Failed to load step analytics', e);
@@ -1317,7 +1317,7 @@ function CampaignAnalyticsTab({ campaignId, campaign, sentData = [], sequences =
 
   const toggleVariant = async (seqId, variantId, enabled) => {
     try {
-      await api.patch(`/projects/${campaignId}/sequences/${seqId}/variants/${variantId}`, { enabled });
+      await api.patch(`/campaigns/${campaignId}/sequences/${seqId}/variants/${variantId}`, { enabled });
       await loadStepStats();
       onRefresh?.();
       notify({ type: 'success', message: enabled ? 'Variant enabled' : 'Variant disabled' });
@@ -1856,12 +1856,12 @@ function SettingsTab({ campaign, inboxes, onSave, campaignId }) {
     if (!form.inbox_ids.length)     { setMsg({type:'error',text:'Select at least one inbox'});  return; }
     setSaving(true);
     try {
-      await api.patch(`/projects/${campaignId}`, form);
+      await api.patch(`/campaigns/${campaignId}`, form);
       // If the timezone was changed, trigger a queue recalculation automatically.
       const tzChanged = form.timezone !== (campaign.timezone ?? '');
       if (tzChanged) {
         try {
-          await api.post(`/projects/${campaignId}/recalculate-queue`);
+          await api.post(`/campaigns/${campaignId}/recalculate-queue`);
           setMsg({ type: 'success', text: 'Settings saved · Queue recalculated for new timezone' });
         } catch (_) {
           setMsg({ type: 'success', text: 'Settings saved (queue recalculation failed — run it manually if needed)' });
@@ -1880,7 +1880,7 @@ function SettingsTab({ campaign, inboxes, onSave, campaignId }) {
   const deleteCampaign = async () => {
     if (!await confirm('Delete this campaign? This cannot be undone.')) return;
     try {
-      await api.del(`/projects/${campaignId}`);
+      await api.del(`/campaigns/${campaignId}`);
       window.location.href = '/campaigns';
     } catch (e) {
       notify({ type: 'error', message: e.message });
@@ -2247,7 +2247,7 @@ function PreviewModal({ sequence, campaignId, leads, onClose, variant = null, ed
     setLoading(true);
     setErr(null);
     try {
-      const data = await api.post(`/projects/${campaignId}/preview`, {
+      const data = await api.post(`/campaigns/${campaignId}/preview`, {
         sequence_id: sequence.id,
         lead_id: leadId ? Number(leadId) : null,
         ...(variant ? { variant_id: variant.id } : {}),
@@ -2271,7 +2271,7 @@ function PreviewModal({ sequence, campaignId, leads, onClose, variant = null, ed
     if (!testEmail.trim()) return;
     setTestState('sending');
     try {
-      await api.post(`/projects/${campaignId}/send-test`, {
+      await api.post(`/campaigns/${campaignId}/send-test`, {
         sequence_id: sequence.id,
         lead_id: leadId ? Number(leadId) : null,
         to_email: testEmail.trim(),
@@ -2488,7 +2488,7 @@ function PersonalizedSequenceSection({ sequence, sequences, personalizedSequence
     try {
       await Promise.all(
         remainingLeads.map(l => api.patch(
-          `/projects/${campaignId}/leads/${l.lead_id}/custom-email/${sequence.id}`,
+          `/campaigns/${campaignId}/leads/${l.lead_id}/custom-email/${sequence.id}`,
           { subject: null, body: null, is_html: sequence?.is_html ?? false },
         ))
       );
@@ -2714,7 +2714,7 @@ function CustomEmailEditorModal({ target, campaignId, onClose, onSaved }) {
     if (hasError) return;
     setSaving(true);
     try {
-      await api.patch(`/projects/${campaignId}/leads/${lead.lead_id}/custom-email/${sequence.id}`, {
+      await api.patch(`/campaigns/${campaignId}/leads/${lead.lead_id}/custom-email/${sequence.id}`, {
         subject: subject || null,
         body: body || null,
         is_html: isHtml,
@@ -2884,7 +2884,7 @@ function SequencesTab({ sequences, campaignId, campaign, leads, refresh }) {
   const submit = async e => {
     e.preventDefault();
     try {
-      await api.post(`/projects/${campaignId}/sequences`, { ...form, position: pos });
+      await api.post(`/campaigns/${campaignId}/sequences`, { ...form, position: pos });
       setForm({ subject: '', body: '', wait_days_after_previous: 0, is_html: false, preview_text: '', sequence_type: 'standard', fallback_subject: '', fallback_body: '' });
       setMsg({ type: 'success', text: 'Sequence added' });
       setShowAddForm(false);
@@ -2899,7 +2899,7 @@ function SequencesTab({ sequences, campaignId, campaign, leads, refresh }) {
     loadingCtrl.start();
     try {
       const { _previous_type, ...payload } = editing || {};
-      await api.patch(`/projects/${campaignId}/sequences/${editing.id}`, payload);
+      await api.patch(`/campaigns/${campaignId}/sequences/${editing.id}`, payload);
       notify({ type: 'success', message: 'Sequence updated' });
       setEditing(null);
       setEditDirty(false);
@@ -2914,7 +2914,7 @@ function SequencesTab({ sequences, campaignId, campaign, leads, refresh }) {
   const deleteSeq = async seq => {
     if (!await confirm(`Delete sequence #${seq.position+1}?`)) return;
     try {
-      await api.del(`/projects/${campaignId}/sequences/${seq.id}`);
+      await api.del(`/campaigns/${campaignId}/sequences/${seq.id}`);
       notify({ type: 'success', message: 'Sequence deleted' });
       if (selectedIdx >= sequences.length - 1) setSelectedIdx(Math.max(0, sequences.length - 2));
       refresh();
@@ -2925,7 +2925,7 @@ function SequencesTab({ sequences, campaignId, campaign, leads, refresh }) {
 
   const createVariant = async () => {
     try {
-      await api.post(`/projects/${campaignId}/sequences/${selectedSeq.id}/variants`, variantForm);
+      await api.post(`/campaigns/${campaignId}/sequences/${selectedSeq.id}/variants`, variantForm);
       setShowVariantForm(false);
       setVariantForm({ label: '', subject: '', body: '', is_html: false, preview_text: '' });
       refresh();
@@ -2935,7 +2935,7 @@ function SequencesTab({ sequences, campaignId, campaign, leads, refresh }) {
   const saveVariant = async () => {
     if (!editingVariant) return;
     try {
-      await api.patch(`/projects/${campaignId}/sequences/${selectedSeq.id}/variants/${editingVariant.id}`, variantForm);
+      await api.patch(`/campaigns/${campaignId}/sequences/${selectedSeq.id}/variants/${editingVariant.id}`, variantForm);
       setEditingVariant(null);
       setShowVariantForm(false);
       refresh();
@@ -2945,14 +2945,14 @@ function SequencesTab({ sequences, campaignId, campaign, leads, refresh }) {
   const deleteVariant = async (v) => {
     if (!await confirm(`Delete variant "${v.label || 'Variant'}"?`)) return;
     try {
-      await api.del(`/projects/${campaignId}/sequences/${selectedSeq.id}/variants/${v.id}`);
+      await api.del(`/campaigns/${campaignId}/sequences/${selectedSeq.id}/variants/${v.id}`);
       refresh();
     } catch (e) { notify({ type: 'error', message: e.message }); }
   };
 
   const toggleVariantEnabled = async (v) => {
     try {
-      await api.patch(`/projects/${campaignId}/sequences/${selectedSeq.id}/variants/${v.id}`, { enabled: !v.enabled });
+      await api.patch(`/campaigns/${campaignId}/sequences/${selectedSeq.id}/variants/${v.id}`, { enabled: !v.enabled });
       refresh();
     } catch (e) { notify({ type: 'error', message: e.message }); }
   };

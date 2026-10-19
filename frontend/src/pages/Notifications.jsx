@@ -85,7 +85,7 @@ function NotificationItem({ n, onRead, onDelete, navigate }) {
   const handleClick = () => {
     if (!n.read_at) onRead(n.id);
     if (n.lead_id) navigate(`/leads/${n.lead_id}`);
-    else if (n.campaign_id) navigate(`/projects/${n.campaign_id}`);
+    else if (n.campaign_id) navigate(`/campaigns/${n.campaign_id}`);
     else if (n.inbox_id) navigate(`/inboxes/${n.inbox_id}`);
     else if (n.event_type.startsWith('email.')) navigate('/analytics');
     else if (['daily_limit', 'rate_limit', 'token_expired'].includes(n.event_type)) navigate('/inboxes');

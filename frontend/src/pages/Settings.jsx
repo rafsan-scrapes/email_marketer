@@ -511,7 +511,7 @@ export default function Settings() {
   const submitStrategy = async val => {
     if (val !== strategy) {
       try {
-        const { has_leads } = await api.get('/projects/has-leads');
+        const { has_leads } = await api.get('/campaigns/has-leads');
         if (has_leads) {
           const ok = await confirm(
             'Changing the scheduling strategy will recalculate all campaigns. Continue?',
