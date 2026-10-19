@@ -249,6 +249,45 @@ async def _run_migrations(conn) -> None:
         """,
         "CREATE INDEX IF NOT EXISTS ix_contact_group_lead_group_id ON contact_group_lead (group_id)",
         "CREATE INDEX IF NOT EXISTS ix_contact_group_lead_lead_id ON contact_group_lead (lead_id)",
+        # 2026-10-XX: Templates and Drafts (Phase 4)
+        """
+        CREATE TABLE IF NOT EXISTS template (
+            id SERIAL PRIMARY KEY,
+            owner_id INTEGER NOT NULL REFERENCES app_user(id) ON DELETE CASCADE,
+            name VARCHAR(255) NOT NULL,
+            channel VARCHAR(32) NOT NULL,  -- 'email' | 'linkedin_dm'
+            subject VARCHAR(512) NULL,
+            body TEXT NOT NULL,
+            is_html BOOLEAN NOT NULL DEFAULT TRUE,
+            description TEXT NULL DEFAULT '',
+            created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW(),
+            updated_at TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW()
+        )
+        """,
+        "CREATE INDEX IF NOT EXISTS ix_template_owner_id ON template (owner_id)",
+        """
+        CREATE TABLE IF NOT EXISTS draft (
+            id SERIAL PRIMARY KEY,
+            campaign_id INTEGER NOT NULL REFERENCES campaign(id) ON DELETE CASCADE,
+            sequence_id INTEGER NOT NULL REFERENCES sequence(id) ON DELETE CASCADE,
+            lead_id INTEGER NOT NULL REFERENCES lead(id) ON DELETE CASCADE,
+            channel VARCHAR(32) NOT NULL,  -- 'email' | 'linkedin_dm'
+            subject VARCHAR(512) NULL,
+            body TEXT NOT NULL,
+            status VARCHAR(32) NOT NULL DEFAULT 'pending',  -- pending | due | sent | skipped | blocked
+            due_at TIMESTAMP WITHOUT TIME ZONE NULL,
+            sent_at TIMESTAMP WITHOUT TIME ZONE NULL,
+            created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW(),
+            updated_at TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW()
+        )
+        """,
+        "CREATE INDEX IF NOT EXISTS ix_draft_campaign_id ON draft (campaign_id)",
+        "CREATE INDEX IF NOT EXISTS ix_draft_sequence_id ON draft (sequence_id)",
+        "CREATE INDEX IF NOT EXISTS ix_draft_lead_id ON draft (lead_id)",
+        "CREATE INDEX IF NOT EXISTS ix_draft_status ON draft (status)",
+        "CREATE INDEX IF NOT EXISTS ix_draft_due_at ON draft (due_at)",
+        # Add channel column to sequence table
+        "ALTER TABLE sequence ADD COLUMN IF NOT EXISTS channel VARCHAR(32) NOT NULL DEFAULT 'email'",
     ]
     # custom_email_override table (IF NOT EXISTS — must be a separate stmt
     # because it uses raw SQL, not ALTER TABLE)

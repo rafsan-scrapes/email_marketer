@@ -8,6 +8,7 @@ Update this file after every meaningful implementation change. Record only work 
 - **Phase 1 complete: enforce manual-only behavior.** All email delivery pathways disabled.
 - **Phase 2 complete: native email-and-password authentication.** Users can register and sign in with email/password without OAuth.
 - **Phase 3 complete: project and contact-management workflow.** Projects, contact groups, CSV import with column mapping, and lead management implemented.
+- **Phase 4 complete: templates, mixed-channel sequences, draft generation, and local draft scheduling.**
 
 ## Current Goal
 
@@ -117,16 +118,63 @@ Update this file after every meaningful implementation change. Record only work 
     jane@example.com,Jane Smith,Jane,Smith,,Globex Corp,CTO,https://globex.com,value3,value4
     ,LinkedIn Only,,,https://linkedin.com/in/linkedinonly,Startup XYZ,Founder,https://startup.xyz,value5,value6
     ```
+- **Phase 4 implementation complete: templates, mixed-channel sequences, draft generation, and local draft scheduling:**
+  - **New Template model** (`app/models.py`):
+    - Reusable templates for email (subject + body, HTML/plain) and LinkedIn DM (body only)
+    - Owner-scoped (per-user), with channel field ("email" | "linkedin_dm")
+    - Placeholders like `{{first_name}}`, `{{company}}`, `{{custom_csv_column}}` resolved against contact fields
+  - **Extended Sequence model** (`app/models.py`):
+    - Added `channel` field ("email" | "linkedin_dm") defaulting to "email"
+    - Added `drafts` relationship to Draft model
+  - **New Draft model** (`app/models.py`):
+    - Stores personalized message snapshots per contact per sequence step
+    - Fields: campaign_id, sequence_id, lead_id, channel, subject (email), body, status (pending/due/sent/skipped/blocked), due_at, sent_at
+    - Relationships to Campaign, Sequence, Lead
+    - Preserves rendered content so future template edits don't affect generated drafts
+  - **Extended User model** (`app/models.py`):
+    - Added `templates` relationship
+  - **Database migrations** (`app/database.py`):
+    - Created `template` table with indexes
+    - Created `draft` table with indexes on campaign_id, sequence_id, lead_id, status, due_at
+    - Added `channel` column to `sequence` table (default "email")
+  - **New schemas** (`app/schemas.py`):
+    - `TemplateCreate`, `TemplateUpdate`, `TemplateResponse`
+    - Extended `SequenceCreate`, `SequenceUpdate`, `SequenceResponse` with `channel` field
+    - `DraftResponse`, `DraftBatchResponse`, `EnrollContactsRequest`, `DraftStatusUpdate`
+  - **New API router** (`app/routers/templates.py`):
+    - Template CRUD: `GET/POST /api/templates`, `GET/PATCH/DELETE /api/templates/{id}`
+    - Template preview: `POST /api/templates/preview` (renders against a lead, reports missing/unknown placeholders)
+    - Draft generation/enrollment: `POST /api/templates/enroll` (enrolls contacts by group or lead IDs, generates personalized drafts for all sequence steps, validates channel eligibility and missing placeholders)
+    - Draft management: `GET /api/templates/projects/{project_id}/drafts`, `GET/PATCH /api/templates/drafts/{id}`
+    - Manual sent-status action: `POST /api/templates/drafts/{id}/mark-sent` (marks draft sent, calculates next step due time from actual sent time + configured delay, never triggers delivery)
+  - **Frontend integration points** (API ready):
+    - Template editor with live preview against selected contact
+    - Sequence builder with channel selection (email/LinkedIn DM) and delay configuration
+    - Enrollment modal with validation (missing fields, channel eligibility)
+    - Draft queue view with status filters and "Mark as sent" action
+  - **Key behaviors implemented**:
+    - Placeholder resolution against standard contact fields + custom CSV data
+    - Missing field detection with clear warnings (no silent failures)
+    - Channel eligibility: email steps require email address, LinkedIn DM steps require LinkedIn URL
+    - First step scheduled at user-selected date/time/timezone
+    - Subsequent steps due based on *actual manual sent time* + step delay
+    - Draft snapshots stored at enrollment time (template edits don't affect existing drafts)
+    - No automatic delivery anywhere — "Mark as sent" only updates local state
+  - **Files modified in Phase 4:**
+    - `app/models.py` — added Template, Draft models; extended Sequence, User, Campaign
+    - `app/database.py` — added migrations for template, draft tables and sequence.channel column
+    - `app/schemas.py` — added Template, extended Sequence, Draft schemas
+    - `app/routers/templates.py` — new router with all template/sequence/draft endpoints
+    - `app/main.py` — registered templates router
 
 ## In Progress
 
-- No implementation change is currently in progress. Phase 3 is complete.
+- No implementation change is currently in progress. Phase 4 is complete.
 
 ## Next Up
 
-1. Templates and mixed-channel sequences (Phase 4): adapt sequence editor for manual draft generation, add LinkedIn DM channel.
-2. Manual draft queue (Phase 5): implement stored drafts with due-time eligibility, manual sent-status action, next-step due calculation.
-3. UI updates (Phase 6): hide/disable legacy inbox connection, reply sync, tracking, analytics pages if not needed for core workflow.
+1. Manual draft queue UI (Phase 5): implement frontend for draft queue with due-time eligibility, manual sent-status action, next-step due calculation.
+2. UI updates (Phase 6): hide/disable legacy inbox connection, reply sync, tracking, analytics pages if not needed for core workflow.
 
 ## Open Questions
 
@@ -173,7 +221,13 @@ Update this file after every meaningful implementation change. Record only work 
   - `app/schemas.py` — added Project, ContactGroup, Lead extended, CSV import schemas
   - `app/routers/projects.py` — new router with all project/group/lead/import endpoints
   - `app/main.py` — registered projects router
+- **Files modified in Phase 4:**
+  - `app/models.py` — added Template, Draft models; extended Sequence, User, Campaign
+  - `app/database.py` — added migrations for template, draft tables and sequence.channel column
+  - `app/schemas.py` — added Template, extended Sequence, Draft schemas
+  - `app/routers/templates.py` — new router with all template/sequence/draft endpoints
+  - `app/main.py` — registered templates router
 - No database migrations required in Phase 1-2 (additive settings only, existing User model compatible).
-- Phase 3 migrations are additive and will run automatically on startup via `app/database.py:_run_migrations()`.
+- Phase 3-4 migrations are additive and will run automatically on startup via `app/database.py:_run_migrations()`.
 - To enable manual mode: set `QUICKLY_MANUAL_MODE=true` in environment (`.env` or deployment config).
 - After deployment: visit the app URL, you'll see the login page with email/password forms. On a fresh database, create the first admin account using email and password. No OAuth credentials required.

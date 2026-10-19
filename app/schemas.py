@@ -659,10 +659,6 @@ class CSVImportExecuteResponse(BaseModel):
 # Contact Group Lead schemas
 # ---------------------------------------------------------------------------
 
-class ContactGroupLeadAdd(BaseModel):
-    lead_id: int
-
-
 class ContactGroupLeadResponse(BaseModel):
     id: int
     group_id: int
@@ -672,3 +668,139 @@ class ContactGroupLeadResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+# ---------------------------------------------------------------------------
+# Template schemas (Phase 4)
+# ---------------------------------------------------------------------------
+
+class TemplateCreate(BaseModel):
+    name: str = Field(..., min_length=1, max_length=255)
+    channel: str = Field(..., pattern="^(email|linkedin_dm)$")  # "email" | "linkedin_dm"
+    subject: Optional[str] = None  # Required for email channel
+    body: str = Field(..., min_length=1)
+    is_html: bool = True  # Only for email channel
+    description: Optional[str] = None
+
+
+class TemplateUpdate(BaseModel):
+    name: Optional[str] = Field(None, min_length=1, max_length=255)
+    channel: Optional[str] = Field(None, pattern="^(email|linkedin_dm)$")
+    subject: Optional[str] = None
+    body: Optional[str] = None
+    is_html: Optional[bool] = None
+    description: Optional[str] = None
+
+
+class TemplateResponse(BaseModel):
+    id: int
+    owner_id: int
+    name: str
+    channel: str
+    subject: Optional[str] = None
+    body: str
+    is_html: bool = True
+    description: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+# ---------------------------------------------------------------------------
+# Sequence schemas (extended with channel)
+# ---------------------------------------------------------------------------
+
+class SequenceCreate(BaseModel):
+    position: int
+    subject: Optional[str] = None
+    body: str
+    wait_days_after_previous: int = 0
+    is_html: Optional[bool] = None  # None = auto-detect (legacy), True = HTML, False = plain
+    preview_text: Optional[str] = None
+    sequence_type: str = "standard"  # standard | personalized
+    fallback_subject: Optional[str] = None
+    fallback_body: Optional[str] = None
+    channel: str = Field(default="email", pattern="^(email|linkedin_dm)$")  # email | linkedin_dm
+
+
+class SequenceUpdate(BaseModel):
+    subject: Optional[str] = None
+    body: Optional[str] = None
+    wait_days_after_previous: Optional[int] = None
+    is_html: Optional[bool] = None
+    preview_text: Optional[str] = None
+    sequence_type: Optional[str] = None
+    fallback_subject: Optional[str] = None
+    fallback_body: Optional[str] = None
+    channel: Optional[str] = Field(None, pattern="^(email|linkedin_dm)$")
+
+
+class SequenceResponse(BaseModel):
+    id: int
+    campaign_id: int
+    position: int
+    subject: Optional[str]
+    body: str
+    wait_days_after_previous: int
+    is_html: Optional[bool] = None
+    preview_text: Optional[str] = None
+    sequence_type: str = "standard"
+    fallback_subject: Optional[str] = None
+    fallback_body: Optional[str] = None
+    channel: str = "email"
+    variants: List["SequenceVariantResponse"] = []
+
+    class Config:
+        from_attributes = True
+
+
+# ---------------------------------------------------------------------------
+# Draft schemas (Phase 4)
+# ---------------------------------------------------------------------------
+
+class DraftResponse(BaseModel):
+    id: int
+    campaign_id: int
+    sequence_id: int
+    lead_id: int
+    channel: str
+    subject: Optional[str] = None
+    body: str
+    status: str
+    due_at: Optional[datetime] = None
+    sent_at: Optional[datetime] = None
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class DraftBatchResponse(BaseModel):
+    """Response for bulk draft generation/enrollment."""
+    drafts_created: int
+    drafts: List[DraftResponse]
+    skipped: List[Dict[str, Any]]  # {lead_id, step, reason}
+
+
+class EnrollContactsRequest(BaseModel):
+    """Enroll contacts (by group or individual) into a sequence."""
+    project_id: int
+    sequence_id: int
+    group_id: Optional[int] = None
+    lead_ids: Optional[List[int]] = None
+    # First step scheduling
+    start_at: datetime  # timezone-aware or naive (assumed project timezone)
+    timezone: str = "UTC"
+
+
+# ---------------------------------------------------------------------------
+# Sequence Step Status Update (Phase 5)
+# ---------------------------------------------------------------------------
+
+class DraftStatusUpdate(BaseModel):
+    """Update draft status (e.g., mark as sent, skipped, blocked)."""
+    status: str = Field(..., pattern="^(sent|skipped|blocked|pending)$")
+    sent_at: Optional[datetime] = None  # Required when status is "sent"

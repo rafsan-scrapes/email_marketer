@@ -276,6 +276,8 @@ class Sequence(Base):
     sequence_type = Column(String(32), default="standard", nullable=False)  # standard | personalized
     fallback_subject = Column(String(512), nullable=True, default=None)  # fallback for personalized sequences
     fallback_body = Column(Text, nullable=True, default=None)  # fallback for personalized sequences
+    # Channel for this step: "email" | "linkedin_dm"
+    channel = Column(String(32), default="email", nullable=False)
     campaign = relationship("Campaign", back_populates="sequences")
     variants = relationship(
         "SequenceVariant",
@@ -283,6 +285,7 @@ class Sequence(Base):
         order_by="SequenceVariant.id",
         cascade="all, delete-orphan",
     )
+    drafts = relationship("Draft", back_populates="sequence", cascade="all, delete-orphan")
 
 
 class SequenceVariant(Base):
@@ -984,6 +987,74 @@ class EmailNotificationConfig(Base):
     created_at = Column(DateTime, default=_utcnow)
     updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow)
     user = relationship("User", back_populates="notification_config")
+
+
+# ---------------------------------------------------------------------------
+# Templates and Drafts (Phase 4: Manual outreach)
+# ---------------------------------------------------------------------------
+
+class Template(Base):
+    """Reusable message templates for email or LinkedIn DM.
+    
+    Templates contain placeholders like {{first_name}}, {{company}}, etc.
+    that are resolved against contact fields and custom CSV data.
+    """
+    __tablename__ = "template"
+    id = Column(Integer, primary_key=True, index=True)
+    owner_id = Column(Integer, ForeignKey("app_user.id", ondelete="CASCADE"), nullable=False, index=True)
+    name = Column(String(255), nullable=False)
+    channel = Column(String(32), nullable=False)  # "email" | "linkedin_dm"
+    subject = Column(String(512), nullable=True)  # Only for email channel
+    body = Column(Text, nullable=False)
+    is_html = Column(Boolean, default=True, nullable=False)  # Only for email channel
+    description = Column(Text, default="", nullable=True)
+    created_at = Column(DateTime, default=_utcnow)
+    updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow)
+    owner = relationship("User", back_populates="templates")
+
+
+class Draft(Base):
+    """Personalized message draft for a specific contact and sequence step.
+    
+    Created when enrolling contacts into a sequence. Stores the fully rendered
+    subject/body so future template edits don't affect already-generated drafts.
+    """
+    __tablename__ = "draft"
+    id = Column(Integer, primary_key=True, index=True)
+    campaign_id = Column(Integer, ForeignKey("campaign.id", ondelete="CASCADE"), nullable=False, index=True)
+    sequence_id = Column(Integer, ForeignKey("sequence.id", ondelete="CASCADE"), nullable=False, index=True)
+    lead_id = Column(Integer, ForeignKey("lead.id", ondelete="CASCADE"), nullable=False, index=True)
+    channel = Column(String(32), nullable=False)  # "email" | "linkedin_dm"
+    subject = Column(String(512), nullable=True)  # Rendered subject (email only)
+    body = Column(Text, nullable=False)  # Rendered body
+    status = Column(String(32), default="pending", nullable=False)  # pending | due | sent | skipped | blocked
+    due_at = Column(DateTime, nullable=True)  # When this draft becomes due (null = not scheduled yet)
+    sent_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=_utcnow)
+    updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow)
+    
+    campaign = relationship("Campaign", back_populates="drafts")
+    sequence = relationship("Sequence", back_populates="drafts")
+    lead = relationship("Lead", back_populates="drafts")
+
+
+# Add relationships to existing models
+# User.templates
+User.templates = relationship("Template", back_populates="owner", cascade="all, delete-orphan")
+
+# Campaign.drafts
+Campaign.drafts = relationship("Draft", back_populates="campaign", cascade="all, delete-orphan")
+
+# Sequence.drafts
+Sequence.drafts = relationship("Draft", back_populates="sequence", cascade="all, delete-orphan")
+
+# Lead.drafts
+Lead.drafts = relationship("Draft", back_populates="lead", cascade="all, delete-orphan")
+
+
+# Extend Sequence model with channel field (add to existing Sequence class)
+# This is done by adding the channel column to the Sequence class definition above.
+# The channel field determines whether this step sends an email or LinkedIn DM.
 
 
 # All supported webhook event types
