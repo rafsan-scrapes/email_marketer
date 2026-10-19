@@ -67,6 +67,7 @@ class User(Base):
     api_keys = relationship("APIKey", back_populates="user", cascade="all, delete-orphan")
     notification_config = relationship("EmailNotificationConfig", back_populates="user", uselist=False, cascade="all, delete-orphan")
     notifications = relationship("Notification", back_populates="user", cascade="all, delete-orphan", order_by="Notification.created_at.desc()")
+    owned_campaigns = relationship("Campaign", back_populates="owner", cascade="all, delete-orphan")
 
 
 class APIKey(Base):
@@ -136,10 +137,17 @@ class Inbox(Base):
 class Lead(Base):
     __tablename__ = "lead"
     id = Column(Integer, primary_key=True, index=True)
-    email = Column(String(255), nullable=False, index=True)
+    email = Column(String(255), nullable=True, index=True)  # nullable to allow LinkedIn-only contacts
     name = Column(String(255), default="")
+    first_name = Column(String(128), default="", nullable=True)
+    last_name = Column(String(128), default="", nullable=True)
+    linkedin_url = Column(String(512), nullable=True)
+    company = Column(String(255), default="", nullable=True)
+    title = Column(String(255), default="", nullable=True)
+    website = Column(String(512), default="", nullable=True)
     custom_data = Column(JSON, default=dict)  # e.g. {"company": "...", "title": "..."}
     status = Column(String(32), default="active")  # active, unsubscribed, bounced, replied, invalid
+    do_not_contact = Column(Boolean, default=False, nullable=False)  # opt-out flag
     # Email verification: pending, valid, invalid, catch_all, unknown, risky, or null (not verified)
     email_verification_status = Column(String(32), nullable=True, default=None, index=True)
     # Raw JSON result from the verification provider
@@ -147,6 +155,7 @@ class Lead(Base):
     # Detected email hosting provider (e.g. "Google Workspace", "Office 365") via MX lookup
     provider = Column(String(64), nullable=True, default=None, index=True)
     created_at = Column(DateTime, default=_utcnow)
+    updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow)
     campaign_leads = relationship("CampaignLead", back_populates="lead", cascade="all, delete-orphan")
     email_logs = relationship("EmailLog", back_populates="lead")
     replies = relationship("LeadReply", back_populates="lead")
@@ -155,6 +164,36 @@ class Lead(Base):
         back_populates="lead",
         cascade="all, delete-orphan",
     )
+    group_links = relationship("ContactGroupLead", back_populates="lead", cascade="all, delete-orphan")
+
+
+class ContactGroup(Base):
+    """Contact group/list within a project."""
+    __tablename__ = "contact_group"
+    id = Column(Integer, primary_key=True, index=True)
+    campaign_id = Column(Integer, ForeignKey("campaign.id", ondelete="CASCADE"), nullable=False, index=True)
+    name = Column(String(255), nullable=False)
+    description = Column(Text, default="", nullable=True)
+    created_at = Column(DateTime, default=_utcnow)
+    updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow)
+    campaign = relationship("Campaign", back_populates="contact_groups")
+    members = relationship("ContactGroupLead", back_populates="group", cascade="all, delete-orphan")
+
+
+class ContactGroupLead(Base):
+    """Many-to-many association between ContactGroup and Lead."""
+    __tablename__ = "contact_group_lead"
+    __table_args__ = (
+        UniqueConstraint("group_id", "lead_id", name="uq_contact_group_lead"),
+        Index("ix_contact_group_lead_group_id", "group_id"),
+        Index("ix_contact_group_lead_lead_id", "lead_id"),
+    )
+    id = Column(Integer, primary_key=True, index=True)
+    group_id = Column(Integer, ForeignKey("contact_group.id", ondelete="CASCADE"), nullable=False)
+    lead_id = Column(Integer, ForeignKey("lead.id", ondelete="CASCADE"), nullable=False)
+    added_at = Column(DateTime, default=_utcnow)
+    group = relationship("ContactGroup", back_populates="members")
+    lead = relationship("Lead", back_populates="group_links")
 
 
 class Campaign(Base):
@@ -162,6 +201,7 @@ class Campaign(Base):
     id = Column(Integer, primary_key=True, index=True)
     public_id = Column(String(16), unique=True, nullable=False, index=True, default=_make_public_id)
     name = Column(String(255), nullable=False)
+    owner_id = Column(Integer, ForeignKey("app_user.id"), nullable=True, index=True)  # Project owner
     paused = Column(Boolean, default=False)  # If True, skip sending from this campaign
     priority = Column(Integer, default=0, nullable=False)  # Lower = higher priority in priority-based scheduling
     # sending_days: 0=Mon .. 6=Sun, stored as JSON array e.g. [0,1,2,3,4]
@@ -200,6 +240,7 @@ class Campaign(Base):
     campaign_leads = relationship("CampaignLead", back_populates="campaign", cascade="all, delete-orphan")
     email_logs = relationship("EmailLog", back_populates="campaign", cascade="all, delete-orphan")
     replies = relationship("LeadReply", back_populates="campaign", cascade="all, delete-orphan")
+    contact_groups = relationship("ContactGroup", back_populates="campaign", cascade="all, delete-orphan")
     # tokens for unsubscribe links; deleted when the campaign is removed
     unsubscribe_tokens = relationship(
         "LeadUnsubscribeToken",

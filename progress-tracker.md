@@ -7,6 +7,7 @@ Update this file after every meaningful implementation change. Record only work 
 - **Phase 0 complete: requirements and architecture audit.**
 - **Phase 1 complete: enforce manual-only behavior.** All email delivery pathways disabled.
 - **Phase 2 complete: native email-and-password authentication.** Users can register and sign in with email/password without OAuth.
+- **Phase 3 complete: project and contact-management workflow.** Projects, contact groups, CSV import with column mapping, and lead management implemented.
 
 ## Current Goal
 
@@ -54,17 +55,78 @@ Update this file after every meaningful implementation change. Record only work 
   - **Session management**: Uses existing JWT in httpOnly cookies (30-min access, 7-day refresh), auto-refresh, logout endpoint.
   - **First admin**: Creates account via email/password on fresh DB; subsequent registrations blocked (admin-only user creation).
   - **All data access protected**: Existing `get_current_user` dependency enforces auth on all protected routes.
+- **Phase 3 implementation complete: project and contact-management workflow:**
+  - **Extended Lead model** (`app/models.py`):
+    - Added `first_name`, `last_name`, `linkedin_url`, `company`, `title`, `website` fields
+    - Made `email` nullable to support LinkedIn-only contacts
+    - Added `do_not_contact` boolean flag for opt-out
+    - Added `updated_at` timestamp
+    - Added `group_links` relationship for contact group membership
+  - **New ContactGroup and ContactGroupLead models** (`app/models.py`):
+    - `ContactGroup`: belongs to a campaign (project), has name, description, timestamps
+    - `ContactGroupLead`: many-to-many association with unique constraint on (group_id, lead_id)
+    - Added relationships and cascading deletes
+  - **Extended Campaign model** (`app/models.py`):
+    - Added `owner_id` foreign key to User (project ownership)
+    - Added `contact_groups` relationship
+  - **Extended User model** (`app/models.py`):
+    - Added `owned_campaigns` relationship
+  - **Database migrations** (`app/database.py`):
+    - Added columns for new Lead fields, Campaign.owner_id
+    - Created `contact_group` and `contact_group_lead` tables with indexes
+  - **New schemas** (`app/schemas.py`):
+    - `ProjectCreate`, `ProjectUpdate`, `ProjectResponse`
+    - `ContactGroupCreate`, `ContactGroupUpdate`, `ContactGroupResponse`
+    - `LeadCreateExtended`, `LeadUpdateExtended`, `LeadResponseExtended`
+    - CSV import schemas: `CSVImportPreviewRequest/Response`, `CSVImportExecuteRequest/Response`
+    - Contact group member schemas: `ContactGroupLeadAdd`, `ContactGroupLeadResponse`
+  - **New API router** (`app/routers/projects.py`):
+    - Project CRUD: `POST/GET/PATCH/DELETE /api/projects`, `GET /api/projects/{id}`
+    - Contact Group CRUD: `POST/GET/PATCH/DELETE /api/projects/{id}/groups`, `GET /api/groups/{id}`
+    - Contact Group Members: `POST/GET/DELETE /api/groups/{id}/members`
+    - Lead management: `POST/GET/PATCH/DELETE /api/projects/{id}/leads`
+    - CSV Import: `POST /api/projects/{id}/import/preview`, `POST /api/projects/{id}/import/execute`
+  - **Authorization**:
+    - `get_user_project` dependency verifies project ownership
+    - `get_user_contact_group` dependency verifies group ownership via project
+    - All endpoints require authentication and ownership
+  - **CSV Import Features**:
+    - Preview endpoint shows first 20 rows with validation
+    - Automatic column mapping detection (email, name, first_name, last_name, linkedin_url, company, title, website)
+    - Custom CSV columns preserved in `custom_data` JSON field
+    - Validation for email format and LinkedIn URL format
+    - Duplicate detection (within file and against database)
+    - Three duplicate strategies: "skip" (default), "update", "separate"
+    - Supports LinkedIn-only contacts (no email required)
+    - Detailed results: imported, updated, skipped, duplicates, errors with details
+  - **Lead Management**:
+    - Create leads with email and/or LinkedIn URL
+    - Search, filter (do_not_contact), pagination
+    - Full CRUD with validation
+    - Automatic do_not_contact enforcement (can be checked before enrollment)
+  - **Files modified in Phase 3:**
+    - `app/models.py` — extended Lead, added ContactGroup/ContactGroupLead, extended Campaign/User
+    - `app/database.py` — added migrations for new columns and tables
+    - `app/schemas.py` — added Project, ContactGroup, Lead extended, CSV import schemas
+    - `app/routers/projects.py` — new router with all project/group/lead/import endpoints
+    - `app/main.py` — registered projects router
+  - **Supported CSV Format** (example):
+    ```csv
+    email,name,first_name,last_name,linkedin_url,company,title,website,custom_field1,custom_field2
+    john@example.com,John Doe,John,Doe,https://linkedin.com/in/johndoe,Acme Inc,CEO,https://acme.com,value1,value2
+    jane@example.com,Jane Smith,Jane,Smith,,Globex Corp,CTO,https://globex.com,value3,value4
+    ,LinkedIn Only,,,https://linkedin.com/in/linkedinonly,Startup XYZ,Founder,https://startup.xyz,value5,value6
+    ```
 
 ## In Progress
 
-- No implementation change is currently in progress. Phase 2 is complete.
+- No implementation change is currently in progress. Phase 3 is complete.
 
 ## Next Up
 
-1. Project/group and CSV improvements (Phase 3): evaluate if `Campaign` model can serve as project container, design contact groups/lists.
-2. Templates and mixed-channel sequences (Phase 4): adapt sequence editor for manual draft generation, add LinkedIn DM channel.
-3. Manual draft queue (Phase 5): implement stored drafts with due-time eligibility, manual sent-status action, next-step due calculation.
-4. UI updates (Phase 6): hide/disable legacy inbox connection, reply sync, tracking, analytics pages if not needed for core workflow.
+1. Templates and mixed-channel sequences (Phase 4): adapt sequence editor for manual draft generation, add LinkedIn DM channel.
+2. Manual draft queue (Phase 5): implement stored drafts with due-time eligibility, manual sent-status action, next-step due calculation.
+3. UI updates (Phase 6): hide/disable legacy inbox connection, reply sync, tracking, analytics pages if not needed for core workflow.
 
 ## Open Questions
 
@@ -105,6 +167,13 @@ Update this file after every meaningful implementation change. Record only work 
 - **Files modified in Phase 2:**
   - `app/routers/auth.py` — updated RegisterRequest/LoginRequest schemas, register/login/admin-create endpoints
   - `frontend/src/pages/Login.jsx` — added email/password forms with toggle, validation, error handling
-- No database migrations required in either phase (additive settings only, existing User model compatible).
+- **Files modified in Phase 3:**
+  - `app/models.py` — extended Lead, added ContactGroup/ContactGroupLead, extended Campaign/User
+  - `app/database.py` — added migrations for new columns and tables
+  - `app/schemas.py` — added Project, ContactGroup, Lead extended, CSV import schemas
+  - `app/routers/projects.py` — new router with all project/group/lead/import endpoints
+  - `app/main.py` — registered projects router
+- No database migrations required in Phase 1-2 (additive settings only, existing User model compatible).
+- Phase 3 migrations are additive and will run automatically on startup via `app/database.py:_run_migrations()`.
 - To enable manual mode: set `QUICKLY_MANUAL_MODE=true` in environment (`.env` or deployment config).
 - After deployment: visit the app URL, you'll see the login page with email/password forms. On a fresh database, create the first admin account using email and password. No OAuth credentials required.

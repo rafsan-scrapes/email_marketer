@@ -32,7 +32,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from app.client_ip import client_ip_from_request
 from app.database import init_db, db_url
 from app.settings_manager import settings
-from app.routers import inbox, leads, campaigns, test_mode
+from app.routers import inbox, leads, campaigns, test_mode, projects
 from app.routers import gmail_oauth
 from app.routers import office365_oauth
 from app.routers import office365_webhook as office365_webhook_router
@@ -247,6 +247,7 @@ _auth_deps = [Depends(_auth_dep)]
 app.include_router(inbox.router, dependencies=_auth_deps)
 app.include_router(leads.router, dependencies=_auth_deps)
 app.include_router(campaigns.router, dependencies=_auth_deps)
+app.include_router(projects.router, dependencies=_auth_deps)
 app.include_router(test_mode.router, dependencies=_auth_deps)
 app.include_router(gmail_oauth.router)
 app.include_router(gmail_oauth.callback_router)

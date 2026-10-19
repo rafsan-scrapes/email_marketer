@@ -479,3 +479,196 @@ class WebhookResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+# ---------------------------------------------------------------------------
+# Project (Campaign) schemas
+# ---------------------------------------------------------------------------
+
+class ProjectCreate(BaseModel):
+    name: str = Field(..., min_length=1, max_length=255)
+    description: Optional[str] = None
+    # Optional inbox assignment
+    inbox_ids: List[int] = []
+
+
+class ProjectUpdate(BaseModel):
+    name: Optional[str] = Field(None, min_length=1, max_length=255)
+    description: Optional[str] = None
+    inbox_ids: Optional[List[int]] = None
+    paused: Optional[bool] = None
+    archived: Optional[bool] = None
+
+
+class ProjectResponse(BaseModel):
+    id: int
+    public_id: str
+    name: str
+    description: Optional[str] = None
+    owner_id: Optional[int] = None
+    paused: bool = False
+    archived: bool = False
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+    inbox_ids: List[int] = []
+    contact_group_count: int = 0
+    lead_count: int = 0
+
+    class Config:
+        from_attributes = True
+
+
+# ---------------------------------------------------------------------------
+# Contact Group schemas
+# ---------------------------------------------------------------------------
+
+class ContactGroupCreate(BaseModel):
+    name: str = Field(..., min_length=1, max_length=255)
+    description: Optional[str] = None
+
+
+class ContactGroupUpdate(BaseModel):
+    name: Optional[str] = Field(None, min_length=1, max_length=255)
+    description: Optional[str] = None
+
+
+class ContactGroupResponse(BaseModel):
+    id: int
+    campaign_id: int
+    name: str
+    description: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+    member_count: int = 0
+
+    class Config:
+        from_attributes = True
+
+
+# ---------------------------------------------------------------------------
+# Extended Lead schemas
+# ---------------------------------------------------------------------------
+
+class LeadCreateExtended(BaseModel):
+    email: Optional[str] = None  # optional for LinkedIn-only contacts
+    name: str = ""
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    linkedin_url: Optional[str] = None
+    company: Optional[str] = None
+    title: Optional[str] = None
+    website: Optional[str] = None
+    custom_data: Dict[str, Any] = {}
+
+
+class LeadUpdateExtended(BaseModel):
+    email: Optional[str] = None
+    name: Optional[str] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    linkedin_url: Optional[str] = None
+    company: Optional[str] = None
+    title: Optional[str] = None
+    website: Optional[str] = None
+    custom_data: Optional[Dict[str, Any]] = None
+    do_not_contact: Optional[bool] = None
+    status: Optional[str] = None
+
+
+class LeadResponseExtended(BaseModel):
+    id: int
+    email: Optional[str] = None
+    name: str
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    linkedin_url: Optional[str] = None
+    company: Optional[str] = None
+    title: Optional[str] = None
+    website: Optional[str] = None
+    custom_data: Dict[str, Any]
+    provider: Optional[str] = None
+    email_verification_status: Optional[str] = None
+    do_not_contact: bool = False
+    status: str = "active"
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+    campaigns: List["LeadCampaignInfo"] = []
+    group_ids: List[int] = []
+
+    class Config:
+        from_attributes = True
+
+
+# ---------------------------------------------------------------------------
+# CSV Import schemas
+# ---------------------------------------------------------------------------
+
+class CSVImportPreviewRequest(BaseModel):
+    project_id: int
+    group_id: Optional[int] = None
+    file_content: str  # base64 encoded CSV content
+    # column_mapping maps CSV header -> field name
+    column_mapping: Dict[str, str] = {}
+    # duplicate_strategy: "skip" | "update" | "separate"
+    duplicate_strategy: str = "skip"
+
+
+class CSVImportPreviewRow(BaseModel):
+    row_number: int
+    email: Optional[str] = None
+    name: Optional[str] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    linkedin_url: Optional[str] = None
+    company: Optional[str] = None
+    title: Optional[str] = None
+    website: Optional[str] = None
+    custom_data: Dict[str, Any] = {}
+    is_valid: bool = True
+    errors: List[str] = []
+
+
+class CSVImportPreviewResponse(BaseModel):
+    total_rows: int
+    valid_rows: int
+    invalid_rows: int
+    duplicate_rows: int
+    preview: List[CSVImportPreviewRow]
+    detected_columns: List[str]
+    suggested_mapping: Dict[str, str]
+
+
+class CSVImportExecuteRequest(BaseModel):
+    project_id: int
+    group_id: Optional[int] = None
+    file_content: str
+    column_mapping: Dict[str, str] = {}
+    duplicate_strategy: str = "skip"
+
+
+class CSVImportExecuteResponse(BaseModel):
+    imported: int
+    updated: int
+    skipped: int
+    duplicates: int
+    errors: int
+    error_details: List[Dict[str, Any]]
+
+
+# ---------------------------------------------------------------------------
+# Contact Group Lead schemas
+# ---------------------------------------------------------------------------
+
+class ContactGroupLeadAdd(BaseModel):
+    lead_id: int
+
+
+class ContactGroupLeadResponse(BaseModel):
+    id: int
+    group_id: int
+    lead_id: int
+    lead: Optional[LeadResponseExtended] = None
+    added_at: datetime
+
+    class Config:
+        from_attributes = True

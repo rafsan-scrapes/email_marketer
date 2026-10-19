@@ -216,6 +216,39 @@ async def _run_migrations(conn) -> None:
         # view and quoted follow-ups reproduce what was actually sent even when
         # the template uses {{random: ...}} (which cannot be re-derived later).
         "ALTER TABLE email_log ADD COLUMN IF NOT EXISTS body TEXT NULL",
+        # 2026-10-XX: Project/Contact group ownership and extended lead fields
+        "ALTER TABLE campaign ADD COLUMN IF NOT EXISTS owner_id INTEGER NULL REFERENCES app_user(id)",
+        "ALTER TABLE lead ADD COLUMN IF NOT EXISTS first_name VARCHAR(128) NULL",
+        "ALTER TABLE lead ADD COLUMN IF NOT EXISTS last_name VARCHAR(128) NULL",
+        "ALTER TABLE lead ADD COLUMN IF NOT EXISTS linkedin_url VARCHAR(512) NULL",
+        "ALTER TABLE lead ADD COLUMN IF NOT EXISTS company VARCHAR(255) NULL",
+        "ALTER TABLE lead ADD COLUMN IF NOT EXISTS title VARCHAR(255) NULL",
+        "ALTER TABLE lead ADD COLUMN IF NOT EXISTS website VARCHAR(512) NULL",
+        "ALTER TABLE lead ADD COLUMN IF NOT EXISTS do_not_contact BOOLEAN NOT NULL DEFAULT FALSE",
+        "ALTER TABLE lead ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW()",
+        # 2026-10-XX: Contact groups
+        """
+        CREATE TABLE IF NOT EXISTS contact_group (
+            id SERIAL PRIMARY KEY,
+            campaign_id INTEGER NOT NULL REFERENCES campaign(id) ON DELETE CASCADE,
+            name VARCHAR(255) NOT NULL,
+            description TEXT NULL DEFAULT '',
+            created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW(),
+            updated_at TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW()
+        )
+        """,
+        "CREATE INDEX IF NOT EXISTS ix_contact_group_campaign_id ON contact_group (campaign_id)",
+        """
+        CREATE TABLE IF NOT EXISTS contact_group_lead (
+            id SERIAL PRIMARY KEY,
+            group_id INTEGER NOT NULL REFERENCES contact_group(id) ON DELETE CASCADE,
+            lead_id INTEGER NOT NULL REFERENCES lead(id) ON DELETE CASCADE,
+            added_at TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW(),
+            UNIQUE (group_id, lead_id)
+        )
+        """,
+        "CREATE INDEX IF NOT EXISTS ix_contact_group_lead_group_id ON contact_group_lead (group_id)",
+        "CREATE INDEX IF NOT EXISTS ix_contact_group_lead_lead_id ON contact_group_lead (lead_id)",
     ]
     # custom_email_override table (IF NOT EXISTS — must be a separate stmt
     # because it uses raw SQL, not ALTER TABLE)
