@@ -64,16 +64,10 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 # ---------------------------------------------------------------------------
 
 class RegisterRequest(BaseModel):
-    username: str = Field(min_length=3, max_length=150)
     email: str = Field(min_length=5, max_length=255)
     password: str = Field(min_length=8, max_length=128)
-
-    @field_validator("username")
-    @classmethod
-    def username_alphanumeric(cls, v: str) -> str:
-        if not v.replace("_", "").replace("-", "").isalnum():
-            raise ValueError("Username must contain only letters, numbers, hyphens, and underscores")
-        return v.lower()
+    password_confirm: str = Field(min_length=8, max_length=128)
+    username: str | None = Field(default=None, min_length=3, max_length=150)
 
     @field_validator("email")
     @classmethod
@@ -95,10 +89,33 @@ class RegisterRequest(BaseModel):
             raise ValueError("Password must contain at least one digit")
         return v
 
+    @field_validator("password_confirm")
+    @classmethod
+    def passwords_match(cls, v: str, info) -> str:
+        if "password" in info.data and v != info.data["password"]:
+            raise ValueError("Passwords do not match")
+        return v
+
+    @field_validator("username")
+    @classmethod
+    def username_alphanumeric(cls, v: str | None) -> str | None:
+        if v is None:
+            return None
+        if not v.replace("_", "").replace("-", "").isalnum():
+            raise ValueError("Username must contain only letters, numbers, hyphens, and underscores")
+        return v.lower()
+
 
 class LoginRequest(BaseModel):
-    username: str
+    email: str = Field(min_length=5, max_length=255)
     password: str
+
+    @field_validator("email")
+    @classmethod
+    def email_format(cls, v: str) -> str:
+        if "@" not in v or "." not in v.split("@")[-1]:
+            raise ValueError("Invalid email format")
+        return v.lower()
 
 
 class ChangePasswordRequest(BaseModel):
@@ -304,15 +321,30 @@ async def register(data: RegisterRequest, db: AsyncSession = Depends(get_db)):
             detail="Registration closed. Contact an admin to create new accounts.",
         )
 
+    # Derive username from email if not provided
+    username = data.username
+    if not username:
+        username = data.email.split("@")[0].lower().replace(".", "_").replace("-", "_")
+
     # Check for existing username/email
     existing = await db.execute(
-        select(User).where((User.username == data.username) | (User.email == data.email))
+        select(User).where((User.username == username) | (User.email == data.email))
     )
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=409, detail="Username or email already taken")
 
+    # Ensure username is unique (append suffix if needed)
+    base_username = username
+    counter = 1
+    while True:
+        check = await db.execute(select(User).where(User.username == username))
+        if check.scalar_one_or_none() is None:
+            break
+        counter += 1
+        username = f"{base_username}_{counter}"
+
     user = User(
-        username=data.username,
+        username=username,
         email=data.email,
         password_hash=hash_password(data.password),
         role="admin",  # First user is always admin
@@ -327,7 +359,7 @@ async def register(data: RegisterRequest, db: AsyncSession = Depends(get_db)):
 @router.post("/login", response_model=TokenResponse)
 async def login(data: LoginRequest, response: Response, db: AsyncSession = Depends(get_db)):
     """Authenticate and return JWT tokens."""
-    result = await db.execute(select(User).where(User.username == data.username.lower()))
+    result = await db.execute(select(User).where(User.email == data.email))
     user = result.scalar_one_or_none()
 
     if not user or not verify_password(data.password, user.password_hash):
@@ -455,14 +487,29 @@ async def create_user(
     db: AsyncSession = Depends(get_db),
 ):
     """Admin creates a new user."""
+    # Derive username from email if not provided
+    username = data.username
+    if not username:
+        username = data.email.split("@")[0].lower().replace(".", "_").replace("-", "_")
+
     existing = await db.execute(
-        select(User).where((User.username == data.username) | (User.email == data.email))
+        select(User).where((User.username == username) | (User.email == data.email))
     )
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=409, detail="Username or email already taken")
 
+    # Ensure username is unique (append suffix if needed)
+    base_username = username
+    counter = 1
+    while True:
+        check = await db.execute(select(User).where(User.username == username))
+        if check.scalar_one_or_none() is None:
+            break
+        counter += 1
+        username = f"{base_username}_{counter}"
+
     user = User(
-        username=data.username,
+        username=username,
         email=data.email,
         password_hash=hash_password(data.password),
         role="user",

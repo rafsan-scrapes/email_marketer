@@ -30,6 +30,14 @@ export default function Login() {
   const [restoreExecuteBusy, setRestoreExecuteBusy] = useState(false);
   const [restoreMsg, setRestoreMsg] = useState(null);
 
+  // Email/password form state
+  const [mode, setMode] = useState('login'); // 'login' or 'register'
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [passwordConfirm, setPasswordConfirm] = useState('');
+  const [formError, setFormError] = useState(null);
+  const [formBusy, setFormBusy] = useState(false);
+
   const isFirstUser = setupComplete === false;
 
   useEffect(() => {
@@ -95,6 +103,49 @@ export default function Login() {
     ? 'Create admin account with Microsoft'
     : 'Sign in with Microsoft';
 
+  // Email/password form handlers
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setFormError(null);
+    setFormBusy(true);
+    try {
+      const endpoint = mode === 'login' ? '/api/auth/login' : '/api/auth/register';
+      const body = mode === 'login'
+        ? { email, password }
+        : { email, password, password_confirm: passwordConfirm };
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(body),
+      });
+      const text = await res.text();
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        data = { detail: text || res.statusText };
+      }
+      if (!res.ok) {
+        throw new Error(data.detail || res.statusText);
+      }
+      // On success, the AuthContext will pick up the cookies and redirect
+      window.location.href = '/';
+    } catch (err) {
+      setFormError(err.message);
+    } finally {
+      setFormBusy(false);
+    }
+  };
+
+  const toggleMode = () => {
+    setMode(mode === 'login' ? 'register' : 'login');
+    setFormError(null);
+    setEmail('');
+    setPassword('');
+    setPasswordConfirm('');
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="max-w-md w-full space-y-8 p-8">
@@ -133,6 +184,100 @@ export default function Login() {
             </svg>
             {microsoftLabel}
           </a>
+        </div>
+
+        {/* Email/Password Form */}
+        <div className="mt-6 space-y-4">
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gray-300"></div>
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-2 bg-gray-50 text-gray-500">Or continue with email</span>
+            </div>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+            <div>
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+                Email address
+              </label>
+              <input
+                id="email"
+                name="email"
+                type="email"
+                autoComplete="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                placeholder="you@example.com"
+                disabled={formBusy}
+              />
+            </div>
+            <div>
+              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+                Password
+              </label>
+              <input
+                id="password"
+                name="password"
+                type="password"
+                autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                placeholder="••••••••"
+                disabled={formBusy}
+                minLength={8}
+              />
+            </div>
+            {mode === 'register' && (
+              <div>
+                <label htmlFor="passwordConfirm" className="block text-sm font-medium text-gray-700">
+                  Confirm password
+                </label>
+                <input
+                  id="passwordConfirm"
+                  name="passwordConfirm"
+                  type="password"
+                  autoComplete="new-password"
+                  required
+                  value={passwordConfirm}
+                  onChange={(e) => setPasswordConfirm(e.target.value)}
+                  className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                  placeholder="••••••••"
+                  disabled={formBusy}
+                  minLength={8}
+                />
+              </div>
+            )}
+            {formError && (
+              <p className="text-sm text-red-600" role="alert">{formError}</p>
+            )}
+            <button
+              type="submit"
+              disabled={formBusy}
+              className="w-full flex justify-center py-2.5 px-4 border border-transparent text-sm font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {formBusy
+                ? (mode === 'login' ? 'Signing in…' : 'Creating account…')
+                : (mode === 'login' ? 'Sign in' : 'Create account')}
+            </button>
+            <p className="text-center text-sm text-gray-500">
+              {mode === 'login'
+                ? "Don't have an account? "
+                : 'Already have an account? '}
+              <button
+                type="button"
+                onClick={toggleMode}
+                className="font-medium text-blue-600 hover:text-blue-500 underline"
+              >
+                {mode === 'login' ? 'Create one' : 'Sign in'}
+              </button>
+            </p>
+          </form>
         </div>
 
         {isFirstUser && (

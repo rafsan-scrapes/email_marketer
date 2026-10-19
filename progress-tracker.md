@@ -6,6 +6,7 @@ Update this file after every meaningful implementation change. Record only work 
 
 - **Phase 0 complete: requirements and architecture audit.**
 - **Phase 1 complete: enforce manual-only behavior.** All email delivery pathways disabled.
+- **Phase 2 complete: native email-and-password authentication.** Users can register and sign in with email/password without OAuth.
 
 ## Current Goal
 
@@ -28,28 +29,50 @@ Update this file after every meaningful implementation change. Record only work 
     - `POST /api/inboxes/{inbox_id}/send-test` (`app/routers/smtp.py`)
     - `POST /api/unibox/send` (`app/routers/unibox.py`)
   - **New `manual_mode` setting**: Added `QUICKLY_MANUAL_MODE` environment variable and `settings.manual_mode` in `app/settings_manager.py`, persisted in database, defaults to `false`.
+- **Phase 2 implementation complete: native email-and-password authentication:**
+  - **Backend (`app/routers/auth.py`):**
+    - Updated `RegisterRequest` schema: email + password + password_confirm + optional username (derived from email if not provided)
+    - Updated `LoginRequest` schema: email + password (replaced username)
+    - Updated `POST /api/auth/register`: First user registers with email/password, becomes admin. Username derived from email local-part, made unique with counter suffix.
+    - Updated `POST /api/auth/login`: Authenticates by email instead of username.
+    - Updated `POST /api/auth/users` (admin): Admin creates users with email/password, username derived from email.
+    - Password strength validation enforced (min 8 chars, uppercase, lowercase, digit).
+    - Password confirmation required on registration.
+    - Email normalization (lowercase) and uniqueness enforced.
+    - Helpful error messages without exposing account existence.
+  - **Frontend (`frontend/src/pages/Login.jsx`):**
+    - Added email/password registration form with password confirmation.
+    - Added email/password login form.
+    - Toggle between login/register modes.
+    - OAuth buttons (Google/Microsoft) remain available as alternative ("Or continue with email" divider).
+    - Form validation, loading states, error display.
+    - On success, redirects to `/` where AuthContext picks up cookies.
+    - Preserved backup restore wizard for first user.
+  - **Preserved existing OAuth flow** (`app_oauth.py`): Google/Microsoft app login still works, matches by email, links to existing accounts.
+  - **No database migrations required**: Existing User model already has nullable `password_hash` for OAuth users, unique email/username constraints.
+  - **No outbound email required** for registration or login.
+  - **Session management**: Uses existing JWT in httpOnly cookies (30-min access, 7-day refresh), auto-refresh, logout endpoint.
+  - **First admin**: Creates account via email/password on fresh DB; subsequent registrations blocked (admin-only user creation).
+  - **All data access protected**: Existing `get_current_user` dependency enforces auth on all protected routes.
 
 ## In Progress
 
-- No implementation change is currently in progress. Phase 1 is complete.
+- No implementation change is currently in progress. Phase 2 is complete.
 
 ## Next Up
 
-1. Proceed to authentication review (Phase 2): inspect email/password login flow, extend if needed, ensure first-admin creation works without external email delivery.
-2. Project/group and CSV improvements (Phase 3): evaluate if `Campaign` model can serve as project container, design contact groups/lists.
-3. Templates and mixed-channel sequences (Phase 4): adapt sequence editor for manual draft generation, add LinkedIn DM channel.
-4. Manual draft queue (Phase 5): implement stored drafts with due-time eligibility, manual sent-status action, next-step due calculation.
-5. UI updates (Phase 6): hide/disable legacy inbox connection, reply sync, tracking, analytics pages if not needed for core workflow.
+1. Project/group and CSV improvements (Phase 3): evaluate if `Campaign` model can serve as project container, design contact groups/lists.
+2. Templates and mixed-channel sequences (Phase 4): adapt sequence editor for manual draft generation, add LinkedIn DM channel.
+3. Manual draft queue (Phase 5): implement stored drafts with due-time eligibility, manual sent-status action, next-step due calculation.
+4. UI updates (Phase 6): hide/disable legacy inbox connection, reply sync, tracking, analytics pages if not needed for core workflow.
 
 ## Open Questions
 
-- Does the checked-out application already provide a usable email/password login form and route, or is the current app-login flow only Google/Microsoft OAuth? The architecture audit mentions JWT/password hashing but also OAuth app login; inspect actual route and frontend behavior before deciding.
 - Can the existing `Campaign` model safely act as the user-facing project/sequence container, or does the target require a distinct `Project` model? Avoid duplicated concepts unless the existing model cannot support the workflow cleanly.
 - Should contact groups/lists be represented by an existing model or a new model linked to projects and contacts?
 - Should draft snapshots use a new draft/message model, or can an existing model be extended safely without retaining semantics tied to automatic delivery? Decide after inspecting model dependencies.
 - Confirm scheduling semantics for each sequence step, including user-selected timezone, delays from manually recorded sent time, pause/resume behavior, and overdue drafts.
 - Decide whether legacy inbox connection, reply synchronization, tracking, and analytics pages should be hidden/disabled initially or removed in a later cleanup. They are not required for the core manual-only workflow.
-- Decide how first-admin creation and any subsequent account invitations/registration should work without external email delivery.
 
 ## Architecture Decisions
 
@@ -79,5 +102,9 @@ Update this file after every meaningful implementation change. Record only work 
   - `app/routers/campaigns.py` — added 403 guard in `send_test_email` endpoint
   - `app/routers/smtp.py` — added 403 guard in `send_test_email` endpoint
   - `app/routers/unibox.py` — added 403 guard in `send_unibox_email` endpoint
-- No database migrations required in this phase (additive setting only).
+- **Files modified in Phase 2:**
+  - `app/routers/auth.py` — updated RegisterRequest/LoginRequest schemas, register/login/admin-create endpoints
+  - `frontend/src/pages/Login.jsx` — added email/password forms with toggle, validation, error handling
+- No database migrations required in either phase (additive settings only, existing User model compatible).
 - To enable manual mode: set `QUICKLY_MANUAL_MODE=true` in environment (`.env` or deployment config).
+- After deployment: visit the app URL, you'll see the login page with email/password forms. On a fresh database, create the first admin account using email and password. No OAuth credentials required.
